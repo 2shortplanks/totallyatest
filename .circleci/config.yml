@@ -1,0 +1,37 @@
+version: 2.1
+jobs:
+  build:
+    docker:
+      - image: cibuilds/hugo:latest
+    working_directory: ~/src
+    environment:
+      GITHUB_DEPLOYMENT_SSH_URL: git@github.com:2shortplanks/totallyatest-deploy.git
+    steps:
+      - add_ssh_keys:
+          fingerprints:
+            - "56:00:c5:c8:15:6f:9f:69:c9:fc:c8:11:a8:ae:9e:23"
+
+      - checkout
+
+      - run:
+          name: Clone the deployment repository
+          command: |
+            git clone --depth 1 $GITHUB_DEPLOYMENT_SSH_URL ~/output
+
+      - run:
+          name: Build with hugo into the deployment repository workdir
+          command: HUGO_ENV=production hugo -v -d ~/output
+
+      - run:
+          name: Locally commit the changes to the deployment repository
+          command: |
+            export COMMIT_SHA=$(git rev-parse HEAD)
+            cd ~/output
+            git add .
+            git config --global user.email "bottymcbotface@optomized.computer"
+            git config --global user.name "Deploy Bot"
+            git commit -m "Automated update for commit ${COMMIT_SHA}"
+
+      - deploy:
+          name: Push to deployment repository
+          command: cd ~/output && git push
